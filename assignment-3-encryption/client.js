@@ -1,6 +1,5 @@
 const io = require("socket.io-client");
 const readline = require("readline");
-const crypto = require("crypto");
 
 const socket = io("http://localhost:3000");
 
@@ -8,12 +7,6 @@ const rl = readline.createInterface({
   input: process.stdin,
   output: process.stdout,
   prompt: "> ",
-});
-
-const { privateKey, publicKey } = crypto.generateKeyPairSync("rsa", {
-  modulusLength: 2048,
-  publicKeyEncoding: { type: "spki", format: "pem" },
-  privateKeyEncoding: { type: "pkcs8", format: "pem" },
 });
 
 let targetUsername = "";
@@ -29,7 +22,7 @@ socket.on("connect", () => {
 
     socket.emit("registerPublicKey", {
       username,
-      publicKey,
+      publicKey: "public key",
     });
     rl.prompt();
 
@@ -42,24 +35,7 @@ socket.on("connect", () => {
           console.log(`No more secretly chatting with ${targetUsername}`);
           targetUsername = "";
         } else {
-          if (targetUsername && users.has(targetUsername)) {
-            const targetPublicKey = users.get(targetUsername);
-            const encryptedMessage = crypto
-              .publicEncrypt(targetPublicKey, Buffer.from(message))
-              .toString("hex");
-            socket.emit("message", {
-              username,
-              message: encryptedMessage,
-              target: targetUsername,
-              isSecret: true,
-            });
-          } else {
-            socket.emit("message", {
-              username,
-              message,
-              isSecret: false,
-            });
-          }
+          socket.emit("message", { username, message });
         }
       }
       rl.prompt();
@@ -76,29 +52,14 @@ socket.on("init", (keys) => {
 socket.on("newUser", (data) => {
   const { username, publicKey } = data;
   users.set(username, publicKey);
-  console.log(`${username} joined the chat`);
+  console.log(`${username} join the chat`);
   rl.prompt();
 });
 
 socket.on("message", (data) => {
-  const { username: senderUsername, message: senderMessage, target, isSecret } = data;
+  const { username: senderUsername, message: senderMessage } = data;
   if (senderUsername !== username) {
-    if (isSecret) {
-      if (target === username) {
-        try {
-          const decryptedMessage = crypto
-            .privateDecrypt(privateKey, Buffer.from(senderMessage, "hex"))
-            .toString("utf8");
-          console.log(`[SECRET] ${senderUsername}: ${decryptedMessage}`);
-        } catch (err) {
-          console.log(`${senderUsername}: ${senderMessage}`);
-        }
-      } else {
-        console.log(`${senderUsername}: ${senderMessage}`);
-      }
-    } else {
-      console.log(`${senderUsername}: ${senderMessage}`);
-    }
+    console.log(`${senderUsername}: ${senderMessage}`);
     rl.prompt();
   }
 });

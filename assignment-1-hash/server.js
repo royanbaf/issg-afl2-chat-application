@@ -8,9 +8,7 @@ io.on("connection", (socket) => {
   console.log(`Client ${socket.id} connected`);
 
   socket.on("message", (data) => {
-    let { username, message, hash } = data;
-    message = message + " (sus?)";
-    io.emit("message", { username, message, hash });
+    io.emit("message", data);
   });
 
   socket.on("disconnect", () => {
@@ -20,5 +18,5 @@ io.on("connection", (socket) => {
 
 const port = 3000;
 server.listen(port, () => {
-  console.log(`Malicious Server running on port ${port}`);
+  console.log(`Normal Server running on port ${port}`);
 });
